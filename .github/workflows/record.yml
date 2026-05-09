@@ -11,10 +11,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Запись и загрузка
         env:
-          TG_TOKEN: ${{ secrets.TG_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
+          TG_TOKEN: ${{ vars.TG_TOKEN }}
+          CHAT_ID: ${{ vars.CHAT_ID }}
         run: |
-          # Запись 10 минут потока
+          # Запись 1 минуты потока
           ffmpeg -i "https://stream.pervoe.fm:8443/" -t 60 -c copy pervoe_radio_kuban_test.mp3
           # Отправка через curl
           curl -F audio=@"pervoe_radio_kuban_test.mp3" https://api.telegram.org/bot$TG_TOKEN/sendAudio?chat_id=$CHAT_ID
