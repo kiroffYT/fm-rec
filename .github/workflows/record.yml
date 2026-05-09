@@ -43,35 +43,33 @@ jobs:
           STATIONS_JSON: ${{ toJson(matrix.group.stations) }}
         run: |
           DATE_STR=$(date +'%d-%m-%Y_%H-%M')
-          
-          # 1. Запускаем запись всех станций группы ПАРАЛЛЕЛЬНО
-          echo "$STATIONS_JSON" | jq -c '.[]' | while read -r station; do
+  
+          # Используем перенаправление <<< вместо конвейера |, чтобы избежать subshell
+          while read -r station; do
             NAME=$(echo "$station" | jq -r '.name')
             URL=$(echo "$station" | jq -r '.url')
             SAFE_NAME=$(echo "$NAME" | tr ' ' '_')
             FILENAME="${SAFE_NAME}_${DATE_STR}.mp3"
             LOGFILE="${SAFE_NAME}.log"
-            
+    
             echo "🎙 Начинаю запись: $NAME..."
-            # Запуск в фоне (&), перенаправляем лог для отладки
+            # Запуск в фоне
             ffmpeg -hide_banner -loglevel error -i "$URL" -t 3900 -c:a libmp3lame -b:a 96k "$FILENAME" > "$LOGFILE" 2>&1 &
-          done
-
-          # 2. Ждем завершения всех фоновых процессов FFmpeg на этой машине
+          done <<< "$(echo "$STATIONS_JSON" | jq -c '.[]')"
+  
+          # Теперь wait увидит все фоновые процессы FFmpeg
           echo "⏳ Ожидаю завершения записи всех потоков (65 минут)..."
           wait
           echo "✅ Запись группы завершена."
-
-          # 3. Последовательная отправка с рандомным сном
-          echo "$STATIONS_JSON" | jq -c '.[]' | while read -r station; do
+  
+          # Отправка остается почти такой же, но тоже через перенаправление для надежности
+          while read -r station; do
             NAME=$(echo "$station" | jq -r '.name')
             SAFE_NAME=$(echo "$NAME" | tr ' ' '_')
             FILENAME="${SAFE_NAME}_${DATE_STR}.mp3"
             LOGFILE="${SAFE_NAME}.log"
 
-            # Проверяем, не пустой ли файл (если была ошибка записи)
             if [ -f "$FILENAME" ] && [ $(stat -c%s "$FILENAME") -gt 1000 ]; then
-              # Случайная пауза от 10 до 60 секунд перед каждой загрузкой
               SLEEP_TIME=$((10 + RANDOM % 51))
               echo "😴 Сплю $SLEEP_TIME сек перед отправкой $NAME..."
               sleep $SLEEP_TIME
@@ -82,9 +80,11 @@ jobs:
                 -F caption="🎙 $NAME | ⏰ $DATE_STR" \
                 -F title="$NAME" \
                 -F performer="Радио Архив" \
-                "https://api.telegram.org/bot$TG_TOKEN/sendAudio" # > /dev/null
+                "https://api.telegram.org/bot$TG_TOKEN/sendAudio" > /dev/null
             else
               echo "❌ Ошибка записи $NAME. Лог ffmpeg:"
-              cat "$LOGFILE"
+              cat "$LOGFILE" || echo "Лог-файл не найден"
+            fi
+          done <<< "$(echo "$STATIONS_JSON" | jq -c '.[]')"
             fi
           done
