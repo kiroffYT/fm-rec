@@ -15,6 +15,6 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: |
           # Запись 10 минут потока
-          ffmpeg -i "https://stream.pervoe.fm:8443/" -t 600 -c copy pervoe_radio_kuban_test.mp3
+          ffmpeg -i "https://stream.pervoe.fm:8443/" -t 60 -c copy pervoe_radio_kuban_test.mp3
           # Отправка через curl
-          curl -F audio=@"record.mp3" https://api.telegram.org/bot$TG_TOKEN/sendAudio?chat_id=$CHAT_ID
+          curl -F audio=@"pervoe_radio_kuban_test.mp3" https://api.telegram.org/bot$TG_TOKEN/sendAudio?chat_id=$CHAT_ID
