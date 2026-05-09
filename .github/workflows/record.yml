@@ -1,48 +1,49 @@
-name: Запись радио
+name: Массовая запись
 on:
-  workflow_dispatch: # Возможность запустить вручную
+  workflow_dispatch:
 
 jobs:
   record:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # Если одна запись упадет, остальные продолжат работу
+      fail-fast: false
       matrix:
         station:
-          - name: "Первое Радио Кубани"
-            url: "https://stream.pervoe.fm:8443/"
-          - name: "Казак FM"
-            url: "http://radio.mediacdn.ru/kazak_fm.mp3"
-          - name: "Радио Краснодар"
-            url: "http://46.29.9.42:8100/krasnodar"
+          - { name: "DFM Краснодар", url: "http://195.128.153.151:8000/dfm_studio" }
+          - { name: "Бизнес-FM Кубань", url: "http://195.128.153.151:8004/businessfm_studio" }
+          - { name: "Вести-FM Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/vesti_kuban" }
+          - { name: "Europa Plus Краснодар", url: "http://online2.gkvr.ru:8000/europa_krd_128.aac" }
+          - { name: "Радио Звезда", url: "http://195.128.153.151:8006/zvezda_krasnodar_krtpc" }
+          - { name: "Казак FM", url: "http://radio.mediacdn.ru/kazak_fm.mp3" }
+          - { name: "Комсомольская правда Краснодар", url: "http://kpradio.hostingradio.ru:8000/krasnodar.radiokp128.mp3" }
+          - { name: "Радио Краснодар", url: "http://46.29.9.42:8100/krasnodar" }
+          - { name: "Радио Кубань", url: "http://stream.kuban.fm:9000/" }
+          - { name: "Радио Маяк Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/mayak_kuban" }
+          - { name: "Новое радио Кубань", url: "http://emgregion.hostingradio.ru:8064/krasnodar.novoe.mp3" }
+          - { name: "Первое радио Кубани", url: "http://78.30.254.137:8000/pervoe" }
+          - { name: "Радио 107", url: "http://online.radio107.ru:8000/radio107_320.mp3" }
+          - { name: "Радио России Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/rr_kuban" }
+          - { name: "Ретро FM Краснодар", url: "http://emgregion.hostingradio.ru:8064/krasnodar.retrofm.mp3" }
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Установка FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Запись и загрузка
         env:
-          TG_TOKEN: ${{ vars.TG_TOKEN }} # Настоятельно рекомендую Secrets!
+          TG_TOKEN: ${{ vars.TG_TOKEN }}
           CHAT_ID: ${{ vars.CHAT_ID }}
         run: |
-          # 1. Готовим имя файла. Убираем пробелы только для системного имени файла, чтобы не было бед
           SAFE_NAME=$(echo "${{ matrix.station.name }}" | tr ' ' '_')
-          FILENAME="${SAFE_NAME}_$(date +'%d-%m-%Y_%H-%M').mp3"
+          FILENAME="${SAFE_NAME}_$(date +'%H-%M').mp3"
           
-          # 2. Формируем красивую подпись для Telegram (тут пробелы и русские буквы разрешены)
-          CAPTION="Запись эфира: ${{ matrix.station.name }}
-          Дата: $(date +'%d.%m.%Y %H:%M')"
+          # Запись 65 минут (3900 секунд) для создания буфера
+          ffmpeg -i "${{ matrix.station.url }}" -t 2000 -c copy "$FILENAME"
           
-          # 3. Запись потока
-          ffmpeg -i "${{ matrix.station.url }}" -t 360 -c copy "$FILENAME"
+          # Рандомная задержка перед отправкой (от 1 до 180 сек)
+          # Чтобы 15 ботов не долбились в ворота Telegram одновременно
+          sleep $((1 + $RANDOM % 180))
           
-          # 4. Отправка в Telegram
-          # Мы передаем caption через отдельный флаг -F. 
-          # Это САМЫЙ надежный способ: curl сам упакует русские буквы правильно.
-          curl -v \
-            -F chat_id="$CHAT_ID" \
-            -F audio=@"$FILENAME" \
-            -F caption="$CAPTION" \
-            "https://api.telegram.org/bot$TG_TOKEN/sendAudio"
+          curl -v -F chat_id="$CHAT_ID" -F audio=@"$FILENAME" \
+          -F caption="Эфир ${{ matrix.station.name }} ($(date +'%H:%M'))" \
+          "https://api.telegram.org/bot$TG_TOKEN/sendAudio"
