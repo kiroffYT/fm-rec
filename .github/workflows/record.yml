@@ -80,7 +80,7 @@ jobs:
                 -F caption="🎙 $NAME | ⏰ $DATE_STR" \
                 -F title="$NAME" \
                 -F performer="Радио Архив" \
-                "https://api.telegram.org/bot$TG_TOKEN/sendAudio" > /dev/null
+                "https://api.telegram.org/bot$TG_TOKEN/sendAudio" # > /dev/null
             else
               echo "❌ Ошибка записи $NAME. Лог ffmpeg:"
               cat "$LOGFILE" || echo "Лог-файл не найден"
