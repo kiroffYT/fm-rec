@@ -1,0 +1,20 @@
+name: Radio Archiver
+on:
+  workflow_dispatch: # Возможность запустить вручную
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Установка FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Запись и загрузка
+        env:
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          # Запись 10 минут потока
+          ffmpeg -i "https://stream.pervoe.fm:8443/" -t 600 -c copy pervoe_radio_kuban_test.mp3
+          # Отправка через curl
+          curl -F audio=@"record.mp3" https://api.telegram.org/bot$TG_TOKEN/sendAudio?chat_id=$CHAT_ID
