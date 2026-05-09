@@ -24,15 +24,25 @@ jobs:
 
       - name: Запись и загрузка
         env:
-          TG_TOKEN: ${{ vars.TG_TOKEN }} # Лучше уже перенести в Secrets
+          TG_TOKEN: ${{ vars.TG_TOKEN }} # Настоятельно рекомендую Secrets!
           CHAT_ID: ${{ vars.CHAT_ID }}
         run: |
-          # Формируем имя файла с датой и названием из матрицы
-          FILENAME="${{ matrix.station.name }}_$(date +'%d-%m-%Y_%H-%M-%s').mp3"
+          # 1. Готовим имя файла. Убираем пробелы только для системного имени файла, чтобы не было бед
+          SAFE_NAME=$(echo "${{ matrix.station.name }}" | tr ' ' '_')
+          FILENAME="${SAFE_NAME}_$(date +'%d-%m-%Y_%H-%M').mp3"
           
-          # Запись потока
+          # 2. Формируем красивую подпись для Telegram (тут пробелы и русские буквы разрешены)
+          CAPTION="Запись эфира: ${{ matrix.station.name }}
+          Дата: $(date +'%d.%m.%Y %H:%M')"
+          
+          # 3. Запись потока
           ffmpeg -i "${{ matrix.station.url }}" -t 60 -c copy "$FILENAME"
           
-          # Отправка в Telegram с подписью
-          curl -F audio=@"$FILENAME" \
-          "https://api.telegram.org/bot$TG_TOKEN/sendAudio?chat_id=$CHAT_ID&caption=Запись эфира ${{ matrix.station.name }} от $(date +'%d.%m.%Y %H:%M')"
+          # 4. Отправка в Telegram
+          # Мы передаем caption через отдельный флаг -F. 
+          # Это САМЫЙ надежный способ: curl сам упакует русские буквы правильно.
+          curl -v \
+            -F chat_id="$CHAT_ID" \
+            -F audio=@"$FILENAME" \
+            -F caption="$CAPTION" \
+            "https://api.telegram.org/bot$TG_TOKEN/sendAudio"
