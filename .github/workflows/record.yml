@@ -36,7 +36,7 @@ jobs:
           Дата: $(date +'%d.%m.%Y %H:%M')"
           
           # 3. Запись потока
-          ffmpeg -i "${{ matrix.station.url }}" -t 60 -c copy "$FILENAME"
+          ffmpeg -i "${{ matrix.station.url }}" -t 360 -c copy "$FILENAME"
           
           # 4. Отправка в Telegram
           # Мы передаем caption через отдельный флаг -F. 
