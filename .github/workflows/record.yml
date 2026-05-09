@@ -1,59 +1,90 @@
-name: Массовая запись
+name: Массовая запись (Групповая)
 on:
-  workflow_dispatch: # Ручной запуск
+  workflow_dispatch:
+  # Если нужен самозапуск, добавь сюда repository_dispatch
 
 jobs:
   record:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # Чтобы падение одной станции не отменяло остальные
+      fail-fast: false
       matrix:
-        station:
-          - { name: "DFM Краснодар", url: "http://85.174.227.198:8009/dfm_server" }
-          - { name: "Бизнес-FM Кубань", url: "http://195.128.153.153:8005/businessfm" }
-          - { name: "Вести-FM Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/vesti_kuban" }
-          - { name: "Europa Plus Краснодар", url: "http://online2.gkvr.ru:8000/europa_krd_128.aac" }
-          - { name: "Радио Звезда", url: "https://listen3.myradio24.com/zvezdafm" }
-          - { name: "Казак FM", url: "http://radio.mediacdn.ru/kazak_fm.mp3" }
-          - { name: "Комсомольская правда Краснодар", url: "http://kpradio.hostingradio.ru:8000/krasnodar.radiokp128.mp3" }
-          - { name: "Радио Краснодар", url: "http://46.29.9.42:8100/krasnodar" }
-          - { name: "Радио Кубань", url: "http://stream.kuban.fm:9000/" }
-          - { name: "Радио Маяк Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/mayak_kuban" }
-          - { name: "Новое радио Кубань", url: "http://emgregion.hostingradio.ru:8064/krasnodar.novoe.mp3" }
-          - { name: "Первое радио Кубани", url: "http://stream.pervoe.fm:8000/" }
-          - { name: "Радио 107", url: "http://online.radio107.ru:8000/radio107_320.mp3" }
-          - { name: "Радио России Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/rr_kuban" }
-          - { name: "Ретро FM Краснодар", url: "http://emgregion.hostingradio.ru:8064/krasnodar.retrofm.mp3" }
+        # Разбиваем 15 станций на 5 групп по 3 штуки
+        group:
+          - stations:
+              - { name: "DFM Краснодар", url: "http://85.174.227.198:8009/dfm_server" }
+              - { name: "Бизнес-FM Кубань", url: "http://195.128.153.153:8005/businessfm" }
+              - { name: "Вести-FM Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/vesti_kuban" }
+          - stations:
+              - { name: "Europa Plus Краснодар", url: "http://online2.gkvr.ru:8000/europa_krd_128.aac" }
+              - { name: "Радио Звезда", url: "https://listen3.myradio24.com/zvezdafm" }
+              - { name: "Казак FM", url: "http://radio.mediacdn.ru/kazak_fm.mp3" }
+          - stations:
+              - { name: "Комсомольская правда Краснодар", url: "http://kpradio.hostingradio.ru:8000/krasnodar.radiokp128.mp3" }
+              - { name: "Радио Краснодар", url: "http://46.29.9.42:8100/krasnodar" }
+              - { name: "Радио Кубань", url: "http://stream.kuban.fm:9000/" }
+          - stations:
+              - { name: "Радио Маяк Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/mayak_kuban" }
+              - { name: "Новое радио Кубань", url: "http://emgregion.hostingradio.ru:8064/krasnodar.novoe.mp3" }
+              - { name: "Первое радио Кубани", url: "http://stream.pervoe.fm:8000/" }
+          - stations:
+              - { name: "Радио 107", url: "http://online.radio107.ru:8000/radio107_320.mp3" }
+              - { name: "Радио России Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/rr_kuban" }
+              - { name: "Ретро FM Краснодар", url: "http://emgregion.hostingradio.ru:8064/krasnodar.retrofm.mp3" }
 
     steps:
       - name: Установка FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg jq
 
-      - name: Запись и загрузка
+      - name: Запись и загрузка группы
         env:
           TG_TOKEN: ${{ vars.TG_TOKEN }}
           CHAT_ID: ${{ vars.CHAT_ID }}
+          STATIONS_JSON: ${{ toJson(matrix.group.stations) }}
         run: |
-          # 1. Формируем безопасное имя файла
-          SAFE_NAME=$(echo "${{ matrix.station.name }}" | tr ' ' '_')
           DATE_STR=$(date +'%d-%m-%Y_%H-%M')
-          FILENAME="${SAFE_NAME}_${DATE_STR}.mp3"
           
-          # 2. Запись с перекодированием в 96k для исправления таймингов и входа в лимит 50Мб
-          # -t 3900 это 65 минут (буфер 5 минут)
-          ffmpeg -i "${{ matrix.station.url }}" -t 3900 -c:a libmp3lame -b:a 96k "$FILENAME"
-          
-          # 3. Рандомная задержка перед отправкой (от 1 до 120 сек)
-          # Разносим нагрузку на API Telegram
-          sleep $((1 + $RANDOM % 120))
-          
-          # 4. Отправка в Telegram с заполнением метаданных
-          # Это сделает плеер в ТГ красивым
-          curl -v \
-            -F chat_id="$CHAT_ID" \
-            -F audio=@"$FILENAME" \
-            -F caption="🎙 ${{ matrix.station.name }}
-          ⏰ Эфир от $(date +'%d.%m.%Y %H:%M')" \
-            -F title="${{ matrix.station.name }}" \
-            -F performer="Радио Архив" \
-            "https://api.telegram.org/bot$TG_TOKEN/sendAudio"
+          # 1. Запускаем запись всех станций группы ПАРАЛЛЕЛЬНО
+          echo "$STATIONS_JSON" | jq -c '.[]' | while read -r station; do
+            NAME=$(echo "$station" | jq -r '.name')
+            URL=$(echo "$station" | jq -r '.url')
+            SAFE_NAME=$(echo "$NAME" | tr ' ' '_')
+            FILENAME="${SAFE_NAME}_${DATE_STR}.mp3"
+            LOGFILE="${SAFE_NAME}.log"
+            
+            echo "🎙 Начинаю запись: $NAME..."
+            # Запуск в фоне (&), перенаправляем лог для отладки
+            ffmpeg -hide_banner -loglevel error -i "$URL" -t 3900 -c:a libmp3lame -b:a 96k "$FILENAME" > "$LOGFILE" 2>&1 &
+          done
+
+          # 2. Ждем завершения всех фоновых процессов FFmpeg на этой машине
+          echo "⏳ Ожидаю завершения записи всех потоков (65 минут)..."
+          wait
+          echo "✅ Запись группы завершена."
+
+          # 3. Последовательная отправка с рандомным сном
+          echo "$STATIONS_JSON" | jq -c '.[]' | while read -r station; do
+            NAME=$(echo "$station" | jq -r '.name')
+            SAFE_NAME=$(echo "$NAME" | tr ' ' '_')
+            FILENAME="${SAFE_NAME}_${DATE_STR}.mp3"
+            LOGFILE="${SAFE_NAME}.log"
+
+            # Проверяем, не пустой ли файл (если была ошибка записи)
+            if [ -f "$FILENAME" ] && [ $(stat -c%s "$FILENAME") -gt 1000 ]; then
+              # Случайная пауза от 10 до 60 секунд перед каждой загрузкой
+              SLEEP_TIME=$((10 + RANDOM % 51))
+              echo "😴 Сплю $SLEEP_TIME сек перед отправкой $NAME..."
+              sleep $SLEEP_TIME
+
+              echo "📤 Отправляю $NAME в Telegram..."
+              curl -s -F chat_id="$CHAT_ID" \
+                -F audio=@"$FILENAME" \
+                -F caption="🎙 $NAME | ⏰ $DATE_STR" \
+                -F title="$NAME" \
+                -F performer="Радио Архив" \
+                "https://api.telegram.org/bot$TG_TOKEN/sendAudio" # > /dev/null
+            else
+              echo "❌ Ошибка записи $NAME. Лог ffmpeg:"
+              cat "$LOGFILE"
+            fi
+          done
