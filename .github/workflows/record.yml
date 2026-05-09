@@ -1,20 +1,38 @@
-name: Radio Archiver
+name: Запись радио
 on:
   workflow_dispatch: # Возможность запустить вручную
 
 jobs:
   record:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Если одна запись упадет, остальные продолжат работу
+      matrix:
+        station:
+          - name: "Первое Радио Кубани"
+            url: "https://stream.pervoe.fm:8443/"
+          - name: "Казак FM"
+            url: "http://radio.mediacdn.ru/kazak_fm.mp3"
+          - name: "Радио Краснодар"
+            url: "http://46.29.9.42:8100/krasnodar"
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Установка FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Запись и загрузка
         env:
-          TG_TOKEN: ${{ vars.TG_TOKEN }}
+          TG_TOKEN: ${{ vars.TG_TOKEN }} # Лучше уже перенести в Secrets
           CHAT_ID: ${{ vars.CHAT_ID }}
         run: |
-          # Запись 1 минуты потока
-          ffmpeg -i "https://stream.pervoe.fm:8443/" -t 60 -c copy pervoe_radio_kuban_test.mp3
-          # Отправка через curl
-          curl -F audio=@"pervoe_radio_kuban_test.mp3" https://api.telegram.org/bot$TG_TOKEN/sendAudio?chat_id=$CHAT_ID
+          # Формируем имя файла с датой и названием из матрицы
+          FILENAME="${{ matrix.station.name }}_$(date +'%d-%m-%Y_%H-%M-%s').mp3"
+          
+          # Запись потока
+          ffmpeg -i "${{ matrix.station.url }}" -t 60 -c copy "$FILENAME"
+          
+          # Отправка в Telegram с подписью
+          curl -F audio=@"$FILENAME" \
+          "https://api.telegram.org/bot$TG_TOKEN/sendAudio?chat_id=$CHAT_ID&caption=Запись эфира ${{ matrix.station.name }} от $(date +'%d.%m.%Y %H:%M')"
