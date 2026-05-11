@@ -10,19 +10,17 @@ jobs:
       matrix:
         station:
           - { name: "DFM Краснодар", url: "http://85.174.227.198:8009/dfm_server" }
-          - { name: "Бизнес-FM Кубань", url: "http://195.128.153.151:8004/businessfm_studio" }
+          - { name: "Бизнес-FM Кубань", url: "http://195.128.153.153:8005/businessfm" }
           - { name: "Вести-FM Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/vesti_kuban" }
-          - { name: "Europa Plus Краснодар", url: "http://online2.gkvr.ru:8000/europa_krd_128.aac" }
+          - { name: "Europa Plus (общий поток)", url: "https://hls-02-europaplus.emgsound.ru/11/playlist.m3u8" }
           - { name: "Радио Звезда", url: "http://195.128.153.151:8006/zvezda_krasnodar_krtpc" }
           - { name: "Казак FM", url: "http://radio.mediacdn.ru/kazak_fm.mp3" }
           - { name: "Комсомольская правда Краснодар", url: "http://kpradio.hostingradio.ru:8000/krasnodar.radiokp64.mp3" }
           - { name: "Радио Краснодар", url: "http://46.29.9.42:8100/krasnodar" }
           - { name: "Радио Кубань", url: "http://stream.kuban.fm:9000/" }
-          - { name: "Радио Маяк Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/mayak_kuban" }
           - { name: "Новое радио Кубань", url: "http://emgregion.hostingradio.ru:8064/krasnodar.novoe.mp3" }
           - { name: "Первое радио Кубани", url: "http://stream.pervoe.fm:8000/" }
           - { name: "Радио 107", url: "http://online.radio107.ru:8000/radio107_320.mp3" }
-          - { name: "Радио России Кубань", url: "http://icecast-vgtrk.cdnvideo.ru/rr_kuban" }
           - { name: "Ретро FM Краснодар", url: "http://emgregion.hostingradio.ru:8064/krasnodar.retrofm.mp3" }
 
     steps:
